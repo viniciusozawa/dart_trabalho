@@ -14,23 +14,27 @@ void main(){
 
   print("\nLocalização da loja: \n\t$endereco");
   print("\nTelefone: \n\t$telefone");
-  stdout.write("\n\n\t1 - Ver ofertas de Produtos  \n\t2 - Ver ofertas de Serviços. \n\t3 - Ver ofertas de roupas \n\t4 - Ver novos serviços.\n\nDigite o número da opção desejada: ");
+  stdout.write("\n\n\t1 - Ver ofertas de Produtos  \n\t2 - Ver ofertas de Serviços. \n\t3 - Ver ofertas de roupas \n\t4 - Ver novos serviços. \n\t5 - Promoção I 10% de desconto.\n\t6 - Promoção II 20% de desconto.\n\nDigite o número da opção desejada: ");
   String? opcao = stdin.readLineSync();
 
   switch (opcao) {
     case '1':
-      print("Ração Royal Canin Indor 7,5kg com o valor promocional de R\$280,00");
+      print("\n\nRação Royal Canin Indor 7,5kg com o valor promocional de R\$280,00");
       break;
     case '2':
-      print("Banho e tosa na promoção pelo preço do banho R\$ 54,00");
+      print("\n\nBanho e tosa na promoção pelo preço do banho R\$ 54,00");
       break;
     case '3':
-      print("Roupas em oferta - Capa de chuva R\$59,99");
+      print("\n\nRoupas em oferta - Capa de chuva R\$59,99");
       break;
     case '4':
       print("\n\n\t| Hidratação de pelo R\$ 39,99 \n\t| Tosa higiênica por R\$ 10,99 \n\t| Tingimento dos pelo por R\$ 55,99.");
       break;
-
+    case '5':
+      print("\nI: Compre um saco de 15kg de ração (R\$ 345,99) e ganhe 10% de desconto no banho.");
+      break;
+    case '6':
+      print("\nII: Compre 1 banho com tosa higiênica e hidratação e ganhe 20% de desconto no valor total.");
     default:
       print("\nOpção inválida. Por favor, escolha 1, 2, 3 ou 4.");
   }
