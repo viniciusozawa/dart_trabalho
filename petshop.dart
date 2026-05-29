@@ -1,65 +1,59 @@
 import 'dart:io';
 
-// ============================================================
-//  DADOS DA LOJA
-// ============================================================
-const String telefone = '(11) 1234-5678';
-const String endereco = 'Rua dos Petshop, 123 - Bairro dos Animais - Cidade dos Bichos';
+import 'loja.dart';
+import 'catalogo.dart';
+import 'carrinho.dart';
+import 'item.dart';
+import 'pagamento.dart';
+import 'pagamento_dinheiro.dart';
+import 'pagamento_cartao.dart';
+import 'cliente.dart';
+import 'funcionario.dart';
 
-// ============================================================
-//  ARRAYS DE PRODUTOS (paralelos)
-// ============================================================
-List<int>    codigosProdutos = [101, 102, 103, 104];
-List<String> nomesProdutos   = [
-  'Racao Royal Canin Indoor Para Caes Adultos 7,5kg',
-  'Racao Royal Canin Sterilised para Gatos Adultos Castrados',
-  'Bifinho Keldog para Caes Sabor Carne e Cereais',
-  'Fraldas Descartaveis Super Secao para Caes Machos 12un'
-];
-List<double> precosProdutos  = [290.00, 492.00, 23.92, 38.61];
 
-// ============================================================
-//  ARRAYS DE SERVICOS (paralelos)
-// ============================================================
-List<int>    codigosServicos = [201, 202, 203];
-List<String> nomesServicos   = ['Banho e tosa', 'Tosa higienica', 'Hidratacao dos pelos'];
-List<double> precosServicos  = [55.99, 12.99, 20.99];
-
-// ============================================================
-//  CARRINHO DE COMPRAS (paralelos, maximo 3 itens)
-// ============================================================
-List<String> carrinhoNomes  = [];
-List<double> carrinhoPrecos = [];
-
-// ============================================================
-//  CONTROLE DE VENDAS DO DIA
-// ============================================================
-int    totalVendas    = 0;
-double valorTotalDia  = 0.0;
-
-// ============================================================
-//  FUNCAO PRINCIPAL
-// ============================================================
 void main() {
-  exibirBoasVindas();
+
+  
+  Loja loja = Loja(
+    nome:     'Cuidapet',
+    telefone: '(11) 1234-5678',
+    endereco: 'Rua dos Petshop, 123 - Bairro dos Animais - Cidade dos Bichos',
+  );
+
+
+  Catalogo catalogo = Catalogo();
+
+  
+  Funcionario funcionario = Funcionario('Pedro', 'Atendente', 'cuidapetrestrito');
+
+  loja.exibirBoasVindas();
 
   stdout.write('\nDigite seu nome: ');
-  String? nomeCliente = stdin.readLineSync();
+  String? entrada = stdin.readLineSync();
 
-  if (nomeCliente == null || nomeCliente.trim().isEmpty) {
-    print('Nome invalido. Encerrando...');
+  if (entrada == null || entrada.trim().isEmpty) {
+    print('Entrada invalida. Encerrando...');
     return;
   }
 
-  // acesso restrito para funcionarios
-  if (nomeCliente.trim().toLowerCase() == 'cuidapetrestrito') {
-    acessoRestrito();
-    resumoDoDia();
+  
+  if (funcionario.validarSenha(entrada.trim().toLowerCase())) {
+    print('\n--------------------------------------------------');
+    print('       AREA RESTRITA - FUNCIONARIOS');
+    print('--------------------------------------------------');
+    print(funcionario.apresentar());   
+
+    acessoRestrito(funcionario, loja);
+    loja.exibirResumo();
     return;
   }
 
-  // autoatendimento do cliente
-  print('\nSeja bem-vindo(a), $nomeCliente!');
+  
+  Cliente cliente = Cliente(entrada.trim());
+  Carrinho carrinho = Carrinho();
+
+  print('\nSeja bem-vindo(a), ${cliente.nome}!');
+  print(cliente.apresentar());  
 
   bool rodando = true;
   while (rodando) {
@@ -67,13 +61,13 @@ void main() {
     String? opcao = stdin.readLineSync();
 
     if (opcao == '1') {
-      menuProdutos();
+      menuProdutos(catalogo, carrinho);
     } else if (opcao == '2') {
-      menuServicos();
+      menuServicos(catalogo, carrinho);
     } else if (opcao == '3') {
-      listarCarrinho();
+      carrinho.listar();
     } else if (opcao == '4') {
-      finalizarCarrinho(nomeCliente);
+      finalizarCarrinho(carrinho, loja, cliente);
     } else if (opcao == '0') {
       rodando = false;
     } else {
@@ -81,23 +75,11 @@ void main() {
     }
   }
 
-  resumoDoDia();
+  
+  exibirDespedidaCliente(cliente);
+  loja.exibirResumo();
 }
 
-// ============================================================
-//  FUNCAO: exibe cabecalho de boas-vindas
-// ============================================================
-void exibirBoasVindas() {
-  separador();
-  print('    BEM VINDO AO AUTOATENDIMENTO DO CUIDAPET');
-  separador();
-  print('Localizacao: $endereco');
-  print('Telefone: $telefone');
-}
-
-// ============================================================
-//  FUNCAO: exibe o menu principal
-// ============================================================
 void exibirMenuPrincipal() {
   print('\n--------------------------------------------------');
   print('              MENU PRINCIPAL');
@@ -111,16 +93,16 @@ void exibirMenuPrincipal() {
   stdout.write('Digite sua opcao desejada: ');
 }
 
-// ============================================================
-//  FUNCAO: menu de produtos (opcao 1)
-// ============================================================
-void menuProdutos() {
+
+void menuProdutos(Catalogo catalogo, Carrinho carrinho) {
   bool emProdutos = true;
   while (emProdutos) {
-    separador();
+    print('\n--------------------------------------------------');
     print('                  PROMOCOES');
-    separador();
-    exibirListaProdutos();
+    print('--------------------------------------------------');
+    for (var p in catalogo.produtos) {
+      p.exibir();   
+    }
     print('  8 - Adicionar ao carrinho');
     print('  0 - Voltar');
     stdout.write('Digite sua opcao: ');
@@ -131,23 +113,33 @@ void menuProdutos() {
     } else if (op == '8') {
       stdout.write('Digite o codigo do produto: ');
       String? codStr = stdin.readLineSync();
-      adicionarProdutoAoCarrinho(codStr);
+      int? cod = int.tryParse(codStr ?? '');
+      if (cod == null) {
+        print('\nCodigo invalido!');
+      } else {
+        Item? item = catalogo.buscarProduto(cod);
+        if (item == null) {
+          print('\nCodigo nao encontrado!');
+        } else {
+          carrinho.adicionar(item);
+        }
+      }
     } else {
       print('\nOpcao invalida!');
     }
   }
 }
 
-// ============================================================
-//  FUNCAO: menu de servicos (opcao 2)
-// ============================================================
-void menuServicos() {
+
+void menuServicos(Catalogo catalogo, Carrinho carrinho) {
   bool emServicos = true;
   while (emServicos) {
-    separador();
+    print('\n--------------------------------------------------');
     print('             SERVICOS DISPONIVEIS');
-    separador();
-    exibirListaServicos();
+    print('--------------------------------------------------');
+    for (var s in catalogo.servicos) {
+      s.exibir();   
+    }
     print('  8 - Adicionar ao carrinho');
     print('  0 - Voltar');
     stdout.write('Digite sua opcao: ');
@@ -158,176 +150,75 @@ void menuServicos() {
     } else if (op == '8') {
       stdout.write('Digite o codigo do servico: ');
       String? codStr = stdin.readLineSync();
-      adicionarServicoAoCarrinho(codStr);
+      int? cod = int.tryParse(codStr ?? '');
+      if (cod == null) {
+        print('\nCodigo invalido!');
+      } else {
+        Item? item = catalogo.buscarServico(cod);
+        if (item == null) {
+          print('\nCodigo nao encontrado!');
+        } else {
+          carrinho.adicionar(item);
+        }
+      }
     } else {
       print('\nOpcao invalida!');
     }
   }
 }
 
-// ============================================================
-//  FUNCAO: imprime todos os produtos na tela
-// ============================================================
-void exibirListaProdutos() {
-  for (int i = 0; i < nomesProdutos.length; i++) {
-    print('Codigo ${codigosProdutos[i]} - ${nomesProdutos[i]}');
-    print('   Preco: R\$ ${precosProdutos[i].toStringAsFixed(2)}\n');
-  }
-}
 
-// ============================================================
-//  FUNCAO: imprime todos os servicos na tela
-// ============================================================
-void exibirListaServicos() {
-  for (int i = 0; i < nomesServicos.length; i++) {
-    print('Codigo ${codigosServicos[i]} - ${nomesServicos[i]}');
-    print('   Preco: R\$ ${precosServicos[i].toStringAsFixed(2)}\n');
-  }
-}
-
-// ============================================================
-//  FUNCAO: adiciona um produto ao carrinho pelo codigo
-// ============================================================
-void adicionarProdutoAoCarrinho(String? codStr) {
-  if (carrinhoNomes.length >= 3) {
-    print('\nSeu carrinho ja esta cheio! (maximo 3 itens)');
-    return;
-  }
-
-  int? codDigitado = int.tryParse(codStr ?? '');
-  if (codDigitado == null) {
-    print('\nCodigo invalido!');
-    return;
-  }
-
-  bool achou = false;
-  for (int i = 0; i < codigosProdutos.length; i++) {
-    if (codigosProdutos[i] == codDigitado) {
-      carrinhoNomes.add(nomesProdutos[i]);
-      carrinhoPrecos.add(precosProdutos[i]);
-      print('\n"${nomesProdutos[i]}" adicionado ao carrinho!');
-      print('Itens no carrinho: ${carrinhoNomes.length}/3');
-      achou = true;
-      break;
-    }
-  }
-
-  if (!achou) {
-    print('\nCodigo nao encontrado!');
-  }
-}
-
-// ============================================================
-//  FUNCAO: adiciona um servico ao carrinho pelo codigo
-// ============================================================
-void adicionarServicoAoCarrinho(String? codStr) {
-  if (carrinhoNomes.length >= 3) {
-    print('\nSeu carrinho ja esta cheio! (maximo 3 itens)');
-    return;
-  }
-
-  int? codDigitado = int.tryParse(codStr ?? '');
-  if (codDigitado == null) {
-    print('\nCodigo invalido!');
-    return;
-  }
-
-  bool achou = false;
-  for (int i = 0; i < codigosServicos.length; i++) {
-    if (codigosServicos[i] == codDigitado) {
-      carrinhoNomes.add(nomesServicos[i]);
-      carrinhoPrecos.add(precosServicos[i]);
-      print('\n"${nomesServicos[i]}" adicionado ao carrinho!');
-      print('Itens no carrinho: ${carrinhoNomes.length}/3');
-      achou = true;
-      break;
-    }
-  }
-
-  if (!achou) {
-    print('\nCodigo nao encontrado!');
-  }
-}
-
-// ============================================================
-//  FUNCAO: lista os itens do carrinho e retorna o total
-// ============================================================
-double listarCarrinho() {
-  separador();
-  print('                SEU CARRINHO');
-  separador();
-
-  if (carrinhoNomes.isEmpty) {
-    print('Seu carrinho esta vazio!');
-    return 0.0;
-  }
-
-  double total = 0.0;
-  for (int i = 0; i < carrinhoNomes.length; i++) {
-    print('${i + 1}. ${carrinhoNomes[i]}');
-    print('   R\$ ${carrinhoPrecos[i].toStringAsFixed(2)}');
-    total += carrinhoPrecos[i];
-  }
-  separador();
-  print('TOTAL: R\$ ${total.toStringAsFixed(2)}');
-  return total;
-}
-
-// ============================================================
-//  FUNCAO: finaliza a compra, aplica desconto e registra venda
-// ============================================================
-void finalizarCarrinho(String nomeCliente) {
-  if (carrinhoNomes.isEmpty) {
+void finalizarCarrinho(Carrinho carrinho, Loja loja, Cliente cliente) {
+  if (carrinho.vazio) {
     print('\nSeu carrinho esta vazio! Adicione itens antes de finalizar.');
     return;
   }
 
-  double total = listarCarrinho();
+  carrinho.listar();
 
   print('\nForma de pagamento:');
   print('  D - Dinheiro (10% de desconto)');
   print('  C - Cartao');
   stdout.write('Digite D ou C: ');
-  String? pagamento = stdin.readLineSync()?.toUpperCase();
+  String? pag = stdin.readLineSync()?.toUpperCase();
 
-  if (pagamento == 'D') {
-    double desconto    = total * 0.10;
-    double totalFinal  = total - desconto;
-    print('\nDesconto 10%: -R\$ ${desconto.toStringAsFixed(2)}');
-    print('VALOR FINAL: R\$ ${totalFinal.toStringAsFixed(2)}');
-    print('\nCompra finalizada! Obrigado, $nomeCliente!');
-    totalVendas++;
-    valorTotalDia += totalFinal;
-    carrinhoNomes.clear();
-    carrinhoPrecos.clear();
-  } else if (pagamento == 'C') {
-    print('\nVALOR FINAL: R\$ ${total.toStringAsFixed(2)}');
-    print('\nCompra finalizada! Obrigado, $nomeCliente!');
-    totalVendas++;
-    valorTotalDia += total;
-    carrinhoNomes.clear();
-    carrinhoPrecos.clear();
+  // POLIMORFISMO de Pagamento
+  Pagamento? pagamento;
+  if (pag == 'D') {
+    pagamento = PagamentoDinheiro();
+  } else if (pag == 'C') {
+    pagamento = PagamentoCartao();
   } else {
-    print('\nForma de pagamento invalida! Tente novamente.');
+    print('\nForma de pagamento invalida!');
+    return;
   }
+
+  double total      = carrinho.calcularTotal();
+  double totalFinal = pagamento.calcularTotal(total);
+  double desconto   = total - totalFinal;
+
+  if (desconto > 0) {
+    print('\nDesconto 10%: -R\$ ${desconto.toStringAsFixed(2)}');
+  }
+  print('VALOR FINAL: R\$ ${totalFinal.toStringAsFixed(2)}');
+  print('\nCompra finalizada! Obrigado, ${cliente.nome}!');
+
+ 
+  cliente.registrarCompra(totalFinal);
+  loja.registrarVenda(totalFinal);
+  carrinho.limpar();
 }
 
-// ============================================================
-//  FUNCAO: area restrita para funcionarios
-// ============================================================
-void acessoRestrito() {
-  separador();
-  print('       AREA RESTRITA - FUNCIONARIOS');
-  separador();
 
-  stdout.write('Nome do cliente: ');
+void acessoRestrito(Funcionario funcionario, Loja loja) {
+  stdout.write('\nNome do cliente: ');
   String? nomeClienteFunc = stdin.readLineSync();
 
   stdout.write('Valor gasto na loja: R\$ ');
-  String? valorStr    = stdin.readLineSync();
-  double? valorFunc   = double.tryParse(valorStr ?? '');
+  String? valorStr = stdin.readLineSync();
+  double? valor    = double.tryParse(valorStr ?? '');
 
-  if (valorFunc == null || valorFunc <= 0) {
+  if (valor == null || valor <= 0) {
     print('Valor invalido!');
     return;
   }
@@ -336,43 +227,44 @@ void acessoRestrito() {
   print('  D - Dinheiro (10% de desconto)');
   print('  C - Cartao');
   stdout.write('Digite D ou C: ');
-  String? pagFunc = stdin.readLineSync()?.toUpperCase();
+  String? pag = stdin.readLineSync()?.toUpperCase();
 
-  separador();
-  print('Cliente: $nomeClienteFunc');
-
-  if (pagFunc == 'D') {
-    double desconto   = valorFunc * 0.10;
-    double totalFinal = valorFunc - desconto;
-    print('Desconto 10%: -R\$ ${desconto.toStringAsFixed(2)}');
-    print('VALOR FINAL: R\$ ${totalFinal.toStringAsFixed(2)}');
-    totalVendas++;
-    valorTotalDia += totalFinal;
-  } else if (pagFunc == 'C') {
-    print('VALOR FINAL: R\$ ${valorFunc.toStringAsFixed(2)}');
-    totalVendas++;
-    valorTotalDia += valorFunc;
+  Pagamento? pagamento;
+  if (pag == 'D') {
+    pagamento = PagamentoDinheiro();
+  } else if (pag == 'C') {
+    pagamento = PagamentoCartao();
   } else {
     print('Forma de pagamento invalida!');
+    return;
   }
+
+  double totalFinal = pagamento.calcularTotal(valor);
+  double desconto   = valor - totalFinal;
+
+  print('\nAtendido por: ${funcionario.apresentar()}');
+  print('Cliente: $nomeClienteFunc');
+  if (desconto > 0) {
+    print('Desconto 10%: -R\$ ${desconto.toStringAsFixed(2)}');
+  }
+  print('VALOR FINAL: R\$ ${totalFinal.toStringAsFixed(2)}');
+
+  loja.registrarVenda(totalFinal);
 }
 
-// ============================================================
-//  FUNCAO: exibe o resumo de vendas ao encerrar o sistema
-// ============================================================
-void resumoDoDia() {
+
+void exibirDespedidaCliente(Cliente cliente) {
   print('\n--------------------------------------------------');
-  print('              RESUMO DO DIA');
+  print('         OBRIGADO PELA VISITA, ${cliente.nome.toUpperCase()}!');
   print('--------------------------------------------------');
-  print('Total de vendas realizadas: $totalVendas');
-  print('Valor total arrecadado: R\$ ${valorTotalDia.toStringAsFixed(2)}');
-  print('--------------------------------------------------');
-  print('Obrigado por usar o Cuidapet! Ate a proxima!');
-}
-
-// ============================================================
-//  FUNCAO: imprime uma linha separadora
-// ============================================================
-void separador() {
+  if (cliente.quantidadeCompras == 0) {
+    print('Voce nao realizou compras hoje.');
+  } else {
+    print('Compras realizadas nesta visita: ${cliente.quantidadeCompras}');
+    for (int i = 0; i < cliente.historicoCompras.length; i++) {
+      print('  Compra ${i + 1}: R\$ ${cliente.historicoCompras[i].toStringAsFixed(2)}');
+    }
+    print('Total gasto: R\$ ${cliente.totalGasto.toStringAsFixed(2)}');
+  }
   print('--------------------------------------------------');
 }
